@@ -406,8 +406,8 @@ class ScaleShiftMACE(MACE):
         # Interactions
         node_es_list = [pair_node_energy]
         node_feats_list = []
-        for interaction, product, readout in zip(
-            self.interactions, self.products, self.readouts
+        for i, (interaction, product, readout) in enumerate(zip(
+            self.interactions, self.products, self.readouts)
         ):
             node_feats, sc = interaction(
                 node_attrs=data["node_attrs"],
@@ -416,9 +416,15 @@ class ScaleShiftMACE(MACE):
                 edge_feats=edge_feats,
                 edge_index=data["edge_index"],
             )
+            if i==0:
+                print("A0:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
+            elif i==1:
+                print("A1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
             node_feats = product(
                 node_feats=node_feats, sc=sc, node_attrs=data["node_attrs"]
             )
+            if i==1:
+                print("H2:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
             node_feats_list.append(node_feats)
             node_es_list.append(
                 readout(node_feats, node_heads)[num_atoms_arange, node_heads]

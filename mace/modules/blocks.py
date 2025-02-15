@@ -284,7 +284,9 @@ class EquivariantProductBasisBlock(torch.nn.Module):
     ) -> torch.Tensor:
         node_feats = self.symmetric_contractions(node_feats, node_attrs)
         if self.use_sc and sc is not None:
+            print("M1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
             return self.linear(node_feats) + sc
+        print("M0:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
         return self.linear(node_feats)
 
 
@@ -665,12 +667,14 @@ class RealAgnosticInteractionBlock(InteractionBlock):
         num_nodes = node_feats.shape[0]
         node_feats = self.linear_up(node_feats)
         tp_weights = self.conv_tp_weights(edge_feats)
+        print("R0:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
         mji = self.conv_tp(
             node_feats[sender], edge_attrs, tp_weights
         )  # [n_edges, irreps]
         message = scatter_sum(
             src=mji, index=receiver, dim=0, dim_size=num_nodes
         )  # [n_nodes, irreps]
+        print("Phi0:", message.shape, np.sum(message.numpy(force=True)))
         message = self.linear(message) / self.avg_num_neighbors
         message = self.skip_tp(message, node_attrs)
         return (
@@ -747,13 +751,16 @@ class RealAgnosticResidualInteractionBlock(InteractionBlock):
         num_nodes = node_feats.shape[0]
         sc = self.skip_tp(node_feats, node_attrs)
         node_feats = self.linear_up(node_feats)
+        print("H1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
         tp_weights = self.conv_tp_weights(edge_feats)
+        print("R1:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
         mji = self.conv_tp(
             node_feats[sender], edge_attrs, tp_weights
         )  # [n_edges, irreps]
         message = scatter_sum(
             src=mji, index=receiver, dim=0, dim_size=num_nodes
         )  # [n_nodes, irreps]
+        print("Phi1:", message.shape, np.sum(message.numpy(force=True)))
         message = self.linear(message) / self.avg_num_neighbors
         return (
             self.reshape(message),
