@@ -449,7 +449,9 @@ class EquivariantProductBasisBlock(torch.nn.Module):
         else:
             node_feats = self.symmetric_contractions(node_feats, node_attrs)
         if self.use_sc and sc is not None:
+            print("M1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
             return self.linear(node_feats) + sc
+        print("M0:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
         return self.linear(node_feats)
 
 
@@ -617,6 +619,7 @@ class RealAgnosticInteractionBlock(InteractionBlock):
         tp_weights = self.conv_tp_weights(edge_feats)
         if cutoff is not None:
             tp_weights = tp_weights * cutoff
+        print("R0:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
 
         message = None
         if hasattr(self, "conv_fusion"):
@@ -628,6 +631,7 @@ class RealAgnosticInteractionBlock(InteractionBlock):
             message = scatter_sum(
                 src=mji, index=edge_index[1], dim=0, dim_size=node_feats.shape[0]
             )
+        print("Phi0:", message.shape, np.sum(message.numpy(force=True)))
         message = self.truncate_ghosts(message, n_real)
         node_attrs = self.truncate_ghosts(node_attrs, n_real)
         message = self.linear(message) / self.avg_num_neighbors
@@ -712,6 +716,7 @@ class RealAgnosticResidualInteractionBlock(InteractionBlock):
         n_real = lammps_natoms[0] if lammps_class is not None else None
         sc = self.skip_tp(node_feats, node_attrs)
         node_feats = self.linear_up(node_feats)
+        print("H1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
         node_feats = self.handle_lammps(
             node_feats,
             lammps_class=lammps_class,
@@ -721,6 +726,7 @@ class RealAgnosticResidualInteractionBlock(InteractionBlock):
         tp_weights = self.conv_tp_weights(edge_feats)
         if cutoff is not None:
             tp_weights = tp_weights * cutoff
+        print("R1:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
         message = None
         if hasattr(self, "conv_fusion"):
             message = self.conv_tp(node_feats, edge_attrs, tp_weights, edge_index)
@@ -731,6 +737,7 @@ class RealAgnosticResidualInteractionBlock(InteractionBlock):
             message = scatter_sum(
                 src=mji, index=edge_index[1], dim=0, dim_size=node_feats.shape[0]
             )
+        print("Phi1:", message.shape, np.sum(message.numpy(force=True)))
         message = self.truncate_ghosts(message, n_real)
         node_attrs = self.truncate_ghosts(node_attrs, n_real)
         sc = self.truncate_ghosts(sc, n_real)
@@ -833,6 +840,7 @@ class RealAgnosticDensityInteractionBlock(InteractionBlock):
             first_layer=first_layer,
         )
         tp_weights = self.conv_tp_weights(edge_feats)
+        print("R0:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
         edge_density = torch.tanh(self.density_fn(edge_feats) ** 2)
         if cutoff is not None:
             tp_weights = tp_weights * cutoff
@@ -850,12 +858,15 @@ class RealAgnosticDensityInteractionBlock(InteractionBlock):
             message = scatter_sum(
                 src=mji, index=edge_index[1], dim=0, dim_size=node_feats.shape[0]
             )
+        print("Phi0:", message.shape, np.sum(message.numpy(force=True)))
 
         message = self.truncate_ghosts(message, n_real)
         node_attrs = self.truncate_ghosts(node_attrs, n_real)
         density = self.truncate_ghosts(density, n_real)
         message = self.linear(message) / (density + 1)
         message = self.skip_tp(message, node_attrs)
+        print("A0_unscaled:", self.reshape(message).shape, torch.sum(message*(density+1)).item())
+        print("A0:", self.reshape(message).shape, torch.sum(message).item())
         return (
             self.reshape(message),
             None,
@@ -949,6 +960,7 @@ class RealAgnosticDensityResidualInteractionBlock(InteractionBlock):
         n_real = lammps_natoms[0] if lammps_class is not None else None
         sc = self.skip_tp(node_feats, node_attrs)
         node_feats = self.linear_up(node_feats)
+        print("H1:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
         node_feats = self.handle_lammps(
             node_feats,
             lammps_class=lammps_class,
@@ -956,6 +968,7 @@ class RealAgnosticDensityResidualInteractionBlock(InteractionBlock):
             first_layer=first_layer,
         )
         tp_weights = self.conv_tp_weights(edge_feats)
+        print("R1:", tp_weights.shape, np.sum(tp_weights.numpy(force=True)))
         edge_density = torch.tanh(self.density_fn(edge_feats) ** 2)
         if cutoff is not None:
             tp_weights = tp_weights * cutoff
@@ -974,12 +987,15 @@ class RealAgnosticDensityResidualInteractionBlock(InteractionBlock):
             message = scatter_sum(
                 src=mji, index=edge_index[1], dim=0, dim_size=node_feats.shape[0]
             )
+        print("Phi1:", message.shape, np.sum(message.numpy(force=True)))
 
         message = self.truncate_ghosts(message, n_real)
         node_attrs = self.truncate_ghosts(node_attrs, n_real)
         density = self.truncate_ghosts(density, n_real)
         sc = self.truncate_ghosts(sc, n_real)
         message = self.linear(message) / (density + 1)
+        print("A1_unscaled:", self.reshape(message).shape, torch.sum(message*(density+1)).item())
+        print("A1:", self.reshape(message).shape, torch.sum(message).item())
         return (
             self.reshape(message),
             sc,

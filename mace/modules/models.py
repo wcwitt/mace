@@ -561,6 +561,8 @@ class ScaleShiftMACE(MACE):
             node_feats = product(
                 node_feats=node_feats, sc=sc, node_attrs=node_attrs_slice
             )
+            if i==1:
+                print("H2:", node_feats.shape, np.sum(node_feats.numpy(force=True)))
             node_feats_list.append(node_feats)
 
         for i, readout in enumerate(self.readouts):
